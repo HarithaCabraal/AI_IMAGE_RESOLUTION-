@@ -2,6 +2,7 @@ from fastapi import APIRouter, UploadFile, File, Form
 from fastapi.responses import JSONResponse
 import tempfile
 import os
+from agent import run_ai_orchestration
 
 router = APIRouter()
 
@@ -12,19 +13,17 @@ async def enhance_image(
 ):
     suffix = os.path.splitext(file.filename)[1]
 
+    # save incoming upload to file disk
     with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
         try: 
             content = await file.read()
             tmp.write(content)
             tmp_path = tmp.name
+            tmp.close() # close access block so other functions can open it
 
-            return JSONResponse({
-                "success": True,
-                "message": "File uploaded and verified by backend skeleton!",
-                "filename": file.filename,
-                "received_mode": mode,
-                "file_size_bytes": os.path.getsize(tmp_path)
-            })
+            # RUn our chained service pipeline
+            agent_result = run_ai_orchestration(tmp_path, mode)
+            return JSONResponse(agent_result)
         
         except Exception as e: 
             return JSONResponse({"success": False, "error": str(e)}, status_code=500)
